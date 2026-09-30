@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = 'salmakacem/kacemsalma-5arctic11-gestionprojets'
+        IMAGE_NAME = 'salmakacem29/kacemsalma-5arctic11-gestionprojets'
     }
 
     stages {
