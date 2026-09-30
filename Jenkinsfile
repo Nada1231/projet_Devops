@@ -23,6 +23,15 @@ pipeline {
         stage('Maven Test') {
             steps { dir('backend') { sh 'mvn test' } }
         }
+        stage('SonarQube Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    dir('backend') {
+                        sh 'mvn sonar:sonar -Dsonar.projectKey=projet-devops-salma -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN'
+                    }
+                }
+            }
+        }
         stage('Maven Package') {
             steps { dir('backend') { sh 'mvn package -DskipTests' } }
         }
