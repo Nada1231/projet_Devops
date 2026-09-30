@@ -27,7 +27,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     dir('backend') {
-                        sh 'mvn sonar:sonar -Dsonar.projectKey=projet-devops-salma -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN'
+                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar -Dsonar.projectKey=projet-devops-salma -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN'
                     }
                 }
             }
