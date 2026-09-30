@@ -12,7 +12,7 @@ services:
       retries: 10
 
   spring:
-    image: salmakacem/kacemsalma-5arctic11-gestionprojets:latest
+    image: salmakacem29/kacemsalma-5arctic11-gestionprojets:latest
     container_name: spring-app
     ports:
       - "8089:8080"
