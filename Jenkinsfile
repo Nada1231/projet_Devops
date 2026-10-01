@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
     tools {
         jdk 'JAVA_HOME'
         maven 'M2_HOME'
@@ -62,9 +66,12 @@ pipeline {
             }
         }
     }
+
     post {
         always {
             sh 'docker logout || true'
+            sh "docker rmi ${IMAGE_NAME}:${BUILD_NUMBER} || true"
+            sh 'docker image prune -f || true'
         }
     }
 }
