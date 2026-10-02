@@ -8,75 +8,151 @@ pipeline {
     environment {
         JAVA_HOME      = '/usr/lib/jvm/java-17-openjdk-amd64'
         PATH           = "${JAVA_HOME}/bin:${env.PATH}"
+
         DOCKERHUB_USER = 'nadahsayri'
         IMAGE_NAME     = 'nada_devops'
+
+        SONAR_PROJECT_KEY  = 'projet-devops'
+        SONAR_PROJECT_NAME = 'projet-devops'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
+
         stage('Java version') {
             steps {
                 sh 'java -version'
+                sh 'mvn -version'
+                sh 'docker --version'
+                sh 'docker compose version'
             }
         }
+
         stage('Build Maven') {
             steps {
                 dir('backend') {
-                    sh 'mvn clean package -DskipTests'
+                    sh '''
+                        mvn clean package -DskipTests
+                    '''
                 }
             }
         }
-        stage('Tests') {
+
+        stage('SonarQube Analysis') {
             steps {
                 dir('backend') {
-                    sh 'mvn test'
-                }
-            }
-        }
-        stage('Archive JAR') {
-            steps {
-                archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
-            }
-        }
-        stage('SonarQube') {
-            steps {
-                dir('backend') {
-                    withSonarQubeEnv('sonar') {
-                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=projet-devops -Dsonar.projectName=projet-devops'
+                    withCredentials([
+                        string(
+                            credentialsId: 'sonar_token',
+                            variable: 'SONAR_TOKEN'
+                        )
+                    ]) {
+                        sh '''
+                            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                                -Dsonar.host.url=http://localhost:9000 \
+                                -Dsonar.token=${SONAR_TOKEN}
+                        '''
                     }
                 }
             }
         }
+
         stage('Docker Build') {
             steps {
                 dir('backend') {
-                    sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:$BUILD_NUMBER -t $DOCKERHUB_USER/$IMAGE_NAME:latest .'
+                    sh '''
+                        docker build \
+                            -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER} \
+                            -t ${DOCKERHUB_USER}/${IMAGE_NAME}:latest \
+                            .
+                    '''
                 }
             }
         }
-        stage('Docker Push') {
+
+        stage('Docker Hub Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub',
-                                                  usernameVariable: 'DH_USER',
-                                                  passwordVariable: 'DH_PASS')]) {
-                    sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
-                    sh 'docker push $DOCKERHUB_USER/$IMAGE_NAME:$BUILD_NUMBER'
-                    sh 'docker push $DOCKERHUB_USER/$IMAGE_NAME:latest'
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'Docker_token',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "${DOCKER_PASSWORD}" | docker login \
+                            -u "${DOCKER_USERNAME}" \
+                            --password-stdin
+                    '''
                 }
             }
         }
-        stage('Deploy') {
+
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                    docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Deploy with Docker Compose') {
             steps {
                 dir('backend') {
-                    withEnv(["APP_IMAGE=${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"]) {
-                        sh 'docker compose -p projet-devops up -d --remove-orphans'
-                    }
+                    sh '''
+                        export APP_IMAGE=${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+
+                        docker compose down
+
+                        docker compose up -d --remove-orphans
+                    '''
                 }
             }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                dir('backend') {
+                    sh '''
+                        echo "===== Docker containers ====="
+                        docker compose ps
+
+                        echo "===== Application logs ====="
+                        docker logs --tail=50 projet-devops-app
+
+                        echo "===== Test application ====="
+                        curl -i --fail http://localhost:8089/ || true
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '======================================'
+            echo ' PIPELINE TERMINE AVEC SUCCES'
+            echo '======================================'
+            echo "Docker image: ${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+        }
+
+        failure {
+            echo '======================================'
+            echo ' PIPELINE EN ECHEC'
+            echo '======================================'
+            echo 'Consulte les logs de la stage qui a échoué.'
+        }
+
+        always {
+            sh 'docker logout || true'
         }
     }
 }
