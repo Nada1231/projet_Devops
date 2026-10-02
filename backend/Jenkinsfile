@@ -13,23 +13,29 @@ pipeline {
             }
         }
         stage('Java version') {
-            steps { sh 'java -version' }
+            steps {
+                sh 'java -version'
+            }
         }
         stage('Build Maven') {
             steps {
-                dir('backend') { sh 'mvn clean package -DskipTests' }
+                dir('backend') {
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
         stage('Tests') {
             steps {
-                dir('backend') { sh 'mvn test' }
+                dir('backend') {
+                    sh 'mvn test'
+                }
             }
         }
         stage('SonarQube') {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('sonar') {
-                        sh 'mvn sonar:sonar -Dsonar.projectKey=projet-devops -Dsonar.projectName=projet-devops'
+                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=projet-devops -Dsonar.projectName=projet-devops'
                     }
                 }
             }
