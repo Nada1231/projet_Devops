@@ -1,9 +1,15 @@
 pipeline {
     agent any
 
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
     environment {
-        JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
-        PATH = "${JAVA_HOME}/bin:${env.PATH}"
+        JAVA_HOME      = '/usr/lib/jvm/java-17-openjdk-amd64'
+        PATH           = "${JAVA_HOME}/bin:${env.PATH}"
+        DOCKERHUB_USER = 'nadahsayri'
+        IMAGE_NAME     = 'nada_devops'
     }
 
     stages {
@@ -31,11 +37,43 @@ pipeline {
                 }
             }
         }
+        stage('Archive JAR') {
+            steps {
+                archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
+            }
+        }
         stage('SonarQube') {
             steps {
                 dir('backend') {
                     withSonarQubeEnv('sonar') {
                         sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=projet-devops -Dsonar.projectName=projet-devops'
+                    }
+                }
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                dir('backend') {
+                    sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:$BUILD_NUMBER -t $DOCKERHUB_USER/$IMAGE_NAME:latest .'
+                }
+            }
+        }
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                                  usernameVariable: 'DH_USER',
+                                                  passwordVariable: 'DH_PASS')]) {
+                    sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
+                    sh 'docker push $DOCKERHUB_USER/$IMAGE_NAME:$BUILD_NUMBER'
+                    sh 'docker push $DOCKERHUB_USER/$IMAGE_NAME:latest'
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                dir('backend') {
+                    withEnv(["APP_IMAGE=${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"]) {
+                        sh 'docker compose -p projet-devops up -d --remove-orphans'
                     }
                 }
             }
