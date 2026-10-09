@@ -125,8 +125,9 @@ pipeline {
                         echo "===== Docker containers ====="
                         docker compose ps
 
+                        sleep 30
                         echo "===== Application logs ====="
-                        docker logs --tail=50 projet-devops-app
+                        docker compose logs --tail=50 app
 
                         echo "===== Test application ====="
                         curl -i --fail http://localhost:8089/ || true
