@@ -1,0 +1,7 @@
+src/
+backend/
+.mvn/
+mvnw
+mvnw.cmd
+*.md
+target/*.original
