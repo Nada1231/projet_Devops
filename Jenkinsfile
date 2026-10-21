@@ -11,13 +11,13 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = 'salmakacem29/kacemsalma-5arctic11-gestionprojets'
+        IMAGE_NAME = 'nadahsayri/hsayrinada-5arctic11-gestionprojets'
     }
 
     stages {
         stage('Checkout Git') {
             steps {
-                git branch: 'salma_branche',
+                git branch: 'nada_branch',
                     url: 'https://github.com/Nada1231/projet_Devops.git',
                     credentialsId: 'github-cred'
             }
@@ -35,7 +35,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     dir('backend') {
-                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar -Dsonar.projectKey=projet-devops-salma -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN'
+                        sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar -Dsonar.projectKey=projet-devops-nada -Dsonar.host.url=http://localhost:9000 -Dsonar.login=$SONAR_TOKEN'
                     }
                 }
             }
